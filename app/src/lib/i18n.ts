@@ -146,7 +146,7 @@ const he = {
   perm_canSendMedia: 'תמונות',
   perm_canVoice: 'הודעות קוליות',
   perm_canCall: 'שיחות',
-  permsSoon: 'תמונות, הודעות קוליות ושיחות יתווספו בגרסה הבאה. ההגדרה נשמרת כבר עכשיו.',
+  permsSoon: 'שיחות קול ווידאו כבר עובדות (באינטרנט). תמונות והודעות קוליות יתווספו בגרסה הבאה; ההגדרה נשמרת כבר עכשיו.',
 
   contactName: 'שם איש הקשר',
   contactNamePlaceholder: 'סבתא רחל',
@@ -331,6 +331,34 @@ const he = {
   err_terms_outdated: 'תנאי השימוש עודכנו — יש לרענן ולאשר מחדש',
   err_nothing_to_verify: 'אין אישור שממתין לאימות עבור איש הקשר הזה',
   err_already_verified: 'איש הקשר כבר אימת את המספר',
+  callAudio: 'שיחה קולית',
+  callVideo: 'שיחת וידאו',
+  callIncomingAudio: 'שיחה נכנסת…',
+  callIncomingVideo: 'שיחת וידאו נכנסת…',
+  callRinging: 'מצלצל…',
+  callConnecting: 'מתחבר…',
+  callAccept: 'מענה',
+  callDecline: 'דחייה',
+  callHangup: 'ניתוק',
+  callMute: 'השתקה',
+  callUnmute: 'ביטול השתקה',
+  callCameraOff: 'כיבוי מצלמה',
+  callCameraOn: 'הפעלת מצלמה',
+  callEnded_ended: 'השיחה הסתיימה',
+  callEnded_declined: 'השיחה נדחתה',
+  callEnded_missed: 'אין מענה',
+  callEnded_cancelled: 'השיחה בוטלה',
+  callEnded_busy: 'תפוס',
+  callEnded_revoked: 'ההורים כיבו את השיחות עם איש הקשר הזה',
+  callEnded_connection_failed: 'לא הצלחנו לחבר את השיחה. ייתכן שהרשת חוסמת שיחות.',
+  callEnded_media_denied: 'אין גישה למיקרופון או למצלמה',
+  callsOverInternet: 'השיחות עוברות באינטרנט (Wi-Fi או חבילת גלישה), לא דרך הקו הסלולרי.',
+  err_calls_not_allowed: 'ההורים לא אפשרו שיחות עם איש הקשר הזה',
+  err_quiet_hours: 'עכשיו שעות שקטות — אי אפשר להתקשר',
+  err_busy: 'הצד השני כבר בשיחה',
+  err_call_not_ringing: 'השיחה כבר לא מצלצלת',
+  err_media_denied: 'צריך לאשר גישה למיקרופון (ולמצלמה בשיחת וידאו) כדי להתקשר',
+  err_media_unsupported: 'המכשיר או הדפדפן הזה לא תומכים בשיחות',
   err_unknown: 'משהו השתבש. כדאי לנסות שוב.',
 } as const;
 
@@ -350,7 +378,9 @@ export function tDynamic(key: string, vars?: Record<string, string | number | nu
 }
 
 export function errorText(err: unknown): string {
-  const code = (err as { code?: string })?.code ?? 'unknown';
+  const e = err as { code?: string; name?: string };
+  // Browsers and phones report a refused camera/microphone as NotAllowedError.
+  const code = e?.name === 'NotAllowedError' || e?.name === 'SecurityError' ? 'media_denied' : (e?.code ?? 'unknown');
   return tDynamic(`err_${code}`, undefined, t('err_unknown'));
 }
 

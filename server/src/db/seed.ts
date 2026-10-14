@@ -98,6 +98,8 @@ await withTx(pool, async (c) => {
     [noa, 'approved'],
     [itay, 'approved'],
   ]);
+  // Grandma may also call both children over the internet.
+  await c.query(`UPDATE contact_approvals SET can_call = true WHERE contact_id = (SELECT id FROM contacts WHERE family_id = $1 AND phone_e164 = $2)`, [fam, GRANDMA]);
   await contact('דוד דני', UNCLE, uncle, [[noa, 'approved']]);
   await contact('המאמן אבי', COACH, null, [[itay, 'pending_parent_approval']]);
 

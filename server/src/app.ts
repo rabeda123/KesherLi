@@ -12,6 +12,7 @@ import { RateLimiter } from './lib/rateLimit.js';
 import { RealtimeHub } from './lib/realtime.js';
 import { createSmsSender, type SmsSender } from './lib/sms.js';
 import { authRoutes } from './routes/auth.js';
+import { callRoutes } from './routes/calls.js';
 import { contactRoutes } from './routes/contacts.js';
 import { conversationRoutes } from './routes/conversations.js';
 import { familyRoutes } from './routes/families.js';
@@ -68,7 +69,7 @@ export async function buildApp(config: Config, db: pg.Pool, overrides: AppOverri
     return { ok: true, sms: ctx.sms.name, push: ctx.push.enabled };
   });
 
-  for (const routes of [authRoutes, meRoutes, familyRoutes, contactRoutes, conversationRoutes, wsRoutes]) {
+  for (const routes of [authRoutes, meRoutes, familyRoutes, contactRoutes, conversationRoutes, callRoutes, wsRoutes]) {
     await app.register(async (scope) => routes(scope, ctx));
   }
 

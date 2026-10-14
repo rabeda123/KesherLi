@@ -3,6 +3,7 @@ import type pg from 'pg';
 import type { Config } from './config.js';
 import { many, type Db } from './db/pool.js';
 import { reconcileFamilyConversations } from './lib/authz.js';
+import { endRevokedCalls, finishCall } from './routes/calls.js';
 import type { PushSender } from './lib/push.js';
 import type { RateLimiter } from './lib/rateLimit.js';
 import type { RealtimeHub } from './lib/realtime.js';
@@ -79,8 +80,20 @@ export async function sendPush(
  */
 export async function afterPermissionChange(ctx: Ctx, familyId: string, alsoNotify: string[] = []): Promise<void> {
   const removed = await reconcileFamilyConversations(ctx.db, familyId);
+  await endRevokedCalls(ctx, familyId);
   for (const r of removed) ctx.hub.publish([r.userId], { type: 'conversation.removed', conversationId: r.conversationId });
   const members = await familyMemberIds(ctx.db, familyId);
   ctx.hub.publish([...members, ...alsoNotify, ...removed.map((r) => r.userId)], { type: 'contacts.changed' });
   ctx.hub.publish([...members, ...alsoNotify, ...removed.map((r) => r.userId)], { type: 'conversations.changed' });
+}
+
+/** Ends any call running on a device (or on any of a user's devices) that was just signed out or revoked. */
+export async function endCallsOf(ctx: Ctx, target: { deviceId?: string; userId?: string }): Promise<void> {
+  const calls = await many<{ id: string }>(
+    ctx.db,
+    `SELECT id FROM calls WHERE status IN ('ringing', 'accepted')
+        AND ($1::uuid IN (caller_device_id, callee_device_id) OR $2::uuid IN (caller_id, callee_id))`,
+    [target.deviceId ?? null, target.userId ?? null],
+  );
+  for (const c of calls) await finishCall(ctx, c.id, 'ended', 'device_revoked');
 }

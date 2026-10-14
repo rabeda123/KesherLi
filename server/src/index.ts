@@ -18,7 +18,8 @@ const timer = setInterval(() => {
     (r) => r.messagesDeleted && app.log.info(r, 'retention maintenance'),
     (err) => app.log.error({ err }, 'maintenance failed'),
   );
-}, 60 * 60_000);
+}, 15 * 60_000);
+void runMaintenance(ctx).catch((err) => app.log.error({ err }, 'maintenance failed'));
 
 const shutdown = async () => {
   clearInterval(timer);

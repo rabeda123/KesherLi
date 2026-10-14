@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Avatar, ErrorBox, Loading } from '../../components/ui';
 import { ApiError, api, newClientId } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
+import { useCalls } from '../../lib/calls';
 import { conversationColor, conversationTitle } from '../../lib/conversation';
 import { confirm, inform } from '../../lib/dialog';
 import { formatDayHeader, formatTime, sameDay } from '../../lib/format';
@@ -14,7 +15,7 @@ import { realtime } from '../../lib/realtime';
 import { font, radius, space, useColors } from '../../lib/theme';
 import type { Member, Message } from '../../lib/types';
 
-type Detail = { id: string; kind: 'direct' | 'group'; title: string | null; familyId: string; canSend: boolean; members: Member[] };
+type Detail = { id: string; kind: 'direct' | 'group'; title: string | null; familyId: string; canSend: boolean; canCall: boolean; members: Member[] };
 type Outgoing = { clientId: string; body: string; createdAt: string; status: 'sending' | 'failed' };
 type Row = { type: 'msg'; m: Message } | { type: 'out'; o: Outgoing } | { type: 'day'; key: string; label: string };
 
@@ -22,6 +23,7 @@ export default function Chat() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const c = useColors();
   const { me } = useAuth();
+  const calls = useCalls();
   const myId = me?.user.id ?? '';
   const [detail, setDetail] = useState<Detail | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -178,6 +180,8 @@ export default function Chat() {
     }
   };
 
+  const call = (kind: 'audio' | 'video') => calls.startCall(id, kind).catch((err) => inform(errorText(err)));
+
   if (!me) return null;
   if (!detail && !error) return <Loading />;
   const title = detail ? conversationTitle(detail, myId) : '';
@@ -202,14 +206,21 @@ export default function Chat() {
             </View>
           ),
           headerRight: () => (
-            <Pressable
-              onPress={() => router.push({ pathname: '/help', params: { conversationId: id } })}
-              accessibilityLabel={t('report')}
-              hitSlop={10}
-              style={{ paddingHorizontal: space.sm }}
-            >
-              <Ionicons name="flag-outline" size={22} color={c.textMuted} />
-            </Pressable>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md, paddingHorizontal: space.sm }}>
+              {detail?.canCall ? (
+                <>
+                  <Pressable onPress={() => call('video')} accessibilityLabel={t('callVideo')} hitSlop={10}>
+                    <Ionicons name="videocam-outline" size={25} color={c.teal} />
+                  </Pressable>
+                  <Pressable onPress={() => call('audio')} accessibilityLabel={t('callAudio')} hitSlop={10}>
+                    <Ionicons name="call-outline" size={23} color={c.teal} />
+                  </Pressable>
+                </>
+              ) : null}
+              <Pressable onPress={() => router.push({ pathname: '/help', params: { conversationId: id } })} accessibilityLabel={t('report')} hitSlop={10}>
+                <Ionicons name="flag-outline" size={22} color={c.textMuted} />
+              </Pressable>
+            </View>
           ),
         }}
       />

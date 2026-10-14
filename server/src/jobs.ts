@@ -1,4 +1,5 @@
 import type { Ctx } from './context.js';
+import { sweepCalls } from './routes/calls.js';
 
 /** Applies each family's message retention policy and removes expired one-time codes. */
 export async function runMaintenance(ctx: Ctx): Promise<{ messagesDeleted: number }> {
@@ -8,6 +9,7 @@ export async function runMaintenance(ctx: Ctx): Promise<{ messagesDeleted: numbe
         AND rp.message_retention_days IS NOT NULL
         AND m.created_at < now() - make_interval(days => rp.message_retention_days)`,
   );
+  await sweepCalls(ctx);
   await ctx.db.query(`DELETE FROM otp_challenges WHERE created_at < now() - interval '2 days'`);
   await ctx.db.query(`DELETE FROM pairing_codes WHERE expires_at < now() - interval '2 days'`);
   return { messagesDeleted: res.rowCount ?? 0 };

@@ -221,6 +221,8 @@ export async function conversationRoutes(app: FastifyInstance, ctx: Ctx) {
       title: conv.title,
       familyId: conv.family_id,
       canSend: await canSendInConversation(ctx.db, req.user.id, conv),
+      // Calls are one-to-one and need the parent's "calls" permission for this pair.
+      canCall: conv.kind === 'direct' && (await canSendInConversation(ctx.db, req.user.id, conv, 'call')),
       isAdmin: await isFamilyAdmin(ctx.db, req.user.id, conv.family_id),
       members: await members(ctx.db, id, overrides),
     };

@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { authenticate, requireAdult, requireChildUser } from '../auth.js';
-import { afterPermissionChange, familyAdminIds, notify, type Ctx } from '../context.js';
+import { afterPermissionChange, endCallsOf, familyAdminIds, notify, type Ctx } from '../context.js';
 import { many, one, withTx } from '../db/pool.js';
 import { logEvent } from '../lib/audit.js';
 import { childFamilyId, requireConversationAccess } from '../lib/authz.js';
@@ -120,6 +120,7 @@ export async function meRoutes(app: FastifyInstance, ctx: Ctx) {
     );
     if (res.rowCount !== 1) throw notFound('device_not_found');
     ctx.hub.disconnect({ deviceId: did });
+    await endCallsOf(ctx, { deviceId: did });
     await logEvent(ctx.db, { kind: 'device_revoked', actorId: req.user.id, targetId: did, ip: req.ip });
     return { ok: true };
   });
@@ -308,6 +309,7 @@ export async function meRoutes(app: FastifyInstance, ctx: Ctx) {
       await logEvent(c, { kind: 'account_deleted', actorId: req.user.id, ip: req.ip });
     });
     ctx.hub.disconnect({ userId: req.user.id });
+    await endCallsOf(ctx, { userId: req.user.id });
     for (const f of families) await afterPermissionChange(ctx, f.family_id);
     return { ok: true };
   });

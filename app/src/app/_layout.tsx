@@ -3,7 +3,9 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { I18nManager, Platform } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { CallOverlay } from '../components/CallOverlay';
 import { AuthProvider } from '../lib/auth';
+import { CallProvider } from '../lib/calls';
 import { t } from '../lib/i18n';
 import { useColors } from '../lib/theme';
 
@@ -27,24 +29,27 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <AuthProvider>
-        <StatusBar style="auto" />
-        <Stack
-          screenOptions={{
-            headerStyle: { backgroundColor: c.surface },
-            headerTintColor: c.primary,
-            headerTitleStyle: { color: c.text, fontWeight: '700' },
-            headerShadowVisible: false,
-            contentStyle: { backgroundColor: c.bg },
-            headerBackTitle: t('back'),
-          }}
-        >
-          <Stack.Screen name="index" options={{ headerShown: false }} />
-          <Stack.Screen name="welcome" options={{ headerShown: false }} />
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          <Stack.Screen name="login" options={{ title: '' }} />
-          <Stack.Screen name="pair" options={{ title: '' }} />
-          <Stack.Screen name="profile-setup" options={{ title: '', headerBackVisible: false }} />
-        </Stack>
+        <CallProvider>
+          <StatusBar style="auto" />
+          <Stack
+            screenOptions={{
+              headerStyle: { backgroundColor: c.surface },
+              headerTintColor: c.primary,
+              headerTitleStyle: { color: c.text, fontWeight: '700' },
+              headerShadowVisible: false,
+              contentStyle: { backgroundColor: c.bg },
+              headerBackTitle: t('back'),
+            }}
+          >
+            <Stack.Screen name="index" options={{ headerShown: false }} />
+            <Stack.Screen name="welcome" options={{ headerShown: false }} />
+            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+            <Stack.Screen name="login" options={{ title: '' }} />
+            <Stack.Screen name="pair" options={{ title: '' }} />
+            <Stack.Screen name="profile-setup" options={{ title: '', headerBackVisible: false }} />
+          </Stack>
+          <CallOverlay />
+        </CallProvider>
       </AuthProvider>
     </SafeAreaProvider>
   );

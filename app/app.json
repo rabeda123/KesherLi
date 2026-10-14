@@ -32,7 +32,14 @@
     "plugins": [
       "expo-router",
       "expo-secure-store",
-      "expo-notifications"
+      "expo-notifications",
+      [
+        "@config-plugins/react-native-webrtc",
+        {
+          "cameraPermission": "קשרלי צריכה גישה למצלמה כדי לקיים שיחות וידאו",
+          "microphonePermission": "קשרלי צריכה גישה למיקרופון כדי לקיים שיחות קוליות ושיחות וידאו"
+        }
+      ]
     ]
   }
 }

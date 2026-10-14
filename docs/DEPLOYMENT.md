@@ -11,6 +11,7 @@
 | A random secret, 32+ chars | HMAC for one-time codes | `APP_SECRET` (`openssl rand -base64 48`) |
 | Expo / EAS account + Apple Developer + Google Play accounts | building and publishing the apps | `eas.json`, store consoles |
 | Push credentials (APNs key, FCM) configured in EAS | push notifications | `PUSH_PROVIDER=expo`, optional `EXPO_ACCESS_TOKEN` |
+| **TURN relay** (recommended: self-hosted coturn, or Twilio / Metered / Cloudflare TURN) | calls on networks that block direct connections | `TURN_URLS` + `TURN_SECRET`, or `TURN_USERNAME`/`TURN_CREDENTIAL` |
 
 Without an SMS provider the server **refuses to start in production** — there is no silent fallback.
 

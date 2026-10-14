@@ -9,7 +9,10 @@ export type RealtimeEvent =
   | { type: 'contacts.changed' }
   | { type: 'family.changed'; familyId: string }
   | { type: 'notification.new'; notification: unknown }
-  | { type: 'session.revoked' };
+  | { type: 'session.revoked' }
+  | { type: 'call.incoming'; call: unknown }
+  | { type: 'call.updated'; call: unknown }
+  | { type: 'call.signal'; callId: string; signal: unknown };
 
 type Conn = { socket: WebSocket; userId: string; deviceId: string };
 
@@ -38,6 +41,14 @@ export class RealtimeHub {
       for (const c of this.byUser.get(id) ?? []) {
         if (c.socket.readyState === c.socket.OPEN) c.socket.send(data);
       }
+    }
+  }
+
+  /** Sends to one device only (call signaling must reach the device in the call). */
+  publishToDevice(userId: string, deviceId: string, event: RealtimeEvent): void {
+    const data = JSON.stringify(event);
+    for (const c of this.byUser.get(userId) ?? []) {
+      if (c.deviceId === deviceId && c.socket.readyState === c.socket.OPEN) c.socket.send(data);
     }
   }
 

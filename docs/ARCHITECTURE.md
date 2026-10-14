@@ -80,8 +80,22 @@ Parents do **not** read their children's messages. The dashboard shows who the c
 | SecurityEvents | `security_events` | the family activity log |
 | ConsentRecords | `consent_records` | terms, privacy, parental consent with version |
 | RetentionPolicies | `retention_policies` | hourly job deletes older messages |
-| MediaFiles, Calls | — | not created yet; planned for phase 2/3 (see ROADMAP) |
+| Calls | `calls` | caller/callee and their devices, kind, status, timestamps (migration 002) |
+| MediaFiles | — | not created yet; planned for phase 2 (see ROADMAP) |
 | (auth support) | `otp_challenges`, `pairing_codes` | |
+
+## Calls (voice and video over the internet)
+
+Calls use WebRTC: audio and video travel directly between the two devices over the internet (Wi-Fi or mobile data), encrypted by WebRTC's mandatory DTLS-SRTP. The server never carries media; it decides whether a call may happen and relays connection setup.
+
+- `POST /calls` requires a direct conversation and `canCommunicate(…, 'call')` — for a contact, the parent's per-child `can_call` permission. Quiet hours block calls to a child except from the child's parents. One active call per person (`busy`).
+- The callee's devices ring (`call.incoming`); the first device to answer becomes the call's device and the others stop ringing. Unanswered calls become `missed` after 45 s.
+- Offer/answer/ICE messages go through `POST /calls/:id/signal`, accepted only from the two devices in the call and relayed only to the other one.
+- Revoking `can_call`, removing or blocking the contact, disconnecting a device, or deleting the child or family **ends the active call immediately** on both sides (`call.updated`, `endReason: revoked | device_revoked`).
+- `GET /calls/ice-servers` / the call responses return STUN and, when configured, TURN servers. With a coturn shared secret the server issues credentials valid for 6 hours per user.
+- Group calls are not supported.
+
+On the web the browser provides WebRTC; on phones `react-native-webrtc` (with its Expo config plugin) does, which requires a development/production build rather than Expo Go.
 
 ## Encryption
 

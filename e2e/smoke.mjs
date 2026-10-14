@@ -16,7 +16,7 @@ if (!childCode) {
   console.error('usage: node smoke.mjs <pairing code>');
   process.exit(1);
 }
-const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH, args: ['--no-sandbox'] });
+const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH, args: ['--no-sandbox', '--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream'] });
 const errors = [];
 async function ctx(name) {
   const c = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, locale: 'he-IL' });
@@ -104,6 +104,25 @@ await child.getByText('מחכה לכם ❤️').last().waitFor({ timeout: 5000 }
 await wait(600);
 await shot(child, '11-child-live-reply');
 await shot(grandma, '12-grandma-chat');
+
+// Grandma video-calls Noa over the internet; both sides must actually connect.
+await grandma.getByLabel('שיחת וידאו').click();
+await grandma.getByText('מצלצל…').waitFor();
+await child.getByText('שיחת וידאו נכנסת…').waitFor({ timeout: 8000 });
+await shot(child, '20-call-incoming');
+await child.getByLabel('מענה').click();
+// The timer only appears once the WebRTC connection is up.
+const connected = (p) => p.getByText(/^🎥 \d+:\d\d$/).waitFor({ timeout: 15000 });
+await Promise.all([connected(child), connected(grandma)]);
+await wait(2500);
+await shot(child, '21-call-connected-child');
+await shot(grandma, '22-call-connected-grandma');
+const hasRemoteVideo = await child.evaluate(() => [...document.querySelectorAll('video')].some((v) => v.srcObject && v.videoWidth > 0 && !v.muted));
+if (!hasRemoteVideo) throw new Error('remote video is not playing on the child side');
+await grandma.getByLabel('ניתוק').click();
+await child.getByText('השיחה הסתיימה').waitFor({ timeout: 8000 });
+await shot(child, '23-call-ended');
+await wait(2500);
 
 // Child people tab + request screen
 await child.goto(APP + '/people');

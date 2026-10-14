@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { authenticate, createSession, requireAdult } from '../auth.js';
-import { familyAdminIds, notify, type Ctx } from '../context.js';
+import { endCallsOf, familyAdminIds, notify, type Ctx } from '../context.js';
 import { one } from '../db/pool.js';
 import { logEvent } from '../lib/audit.js';
 import { hmac, normalizePairingCode } from '../lib/crypto.js';
@@ -81,6 +81,7 @@ export async function authRoutes(app: FastifyInstance, ctx: Ctx) {
     await ctx.db.query(`UPDATE devices SET revoked_at = now(), revoked_by = $2 WHERE id = $1`, [req.user.deviceId, req.user.id]);
     await logEvent(ctx.db, { kind: 'logout', actorId: req.user.id, targetId: req.user.deviceId, ip: req.ip });
     ctx.hub.disconnect({ deviceId: req.user.deviceId });
+    await endCallsOf(ctx, { deviceId: req.user.deviceId });
     return { ok: true };
   });
 

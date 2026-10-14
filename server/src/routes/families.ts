@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { authenticate, requireAdult } from '../auth.js';
-import { afterPermissionChange, familyMemberIds, notify, type Ctx } from '../context.js';
+import { afterPermissionChange, endCallsOf, familyMemberIds, notify, type Ctx } from '../context.js';
 import { many, one, withTx } from '../db/pool.js';
 import { logEvent } from '../lib/audit.js';
 import { requireChildInFamily, requireFamilyAdmin } from '../lib/authz.js';
@@ -109,6 +109,7 @@ export async function familyRoutes(app: FastifyInstance, ctx: Ctx) {
     const body = parse(z.object(StepUp), req.body);
     await verifyStepUp(ctx, req.user.id, body.challengeId, body.code, req.ip);
     const members = await familyMemberIds(ctx.db, fid);
+    for (const uid of members) await endCallsOf(ctx, { userId: uid });
     await withTx(ctx.db, async (c) => {
       // Child accounts exist only inside the family, so they are deleted with it.
       await c.query(`DELETE FROM users WHERE id IN (SELECT user_id FROM child_profiles WHERE family_id = $1)`, [fid]);
@@ -275,6 +276,7 @@ export async function familyRoutes(app: FastifyInstance, ctx: Ctx) {
     const body = parse(z.object(StepUp), req.body);
     await verifyStepUp(ctx, req.user.id, body.challengeId, body.code, req.ip);
     ctx.hub.disconnect({ userId: cid });
+    await endCallsOf(ctx, { userId: cid });
     await withTx(ctx.db, async (c) => {
       await c.query(`DELETE FROM users WHERE id = $1`, [cid]);
       await logEvent(c, { kind: 'child_removed', familyId: fid, actorId: req.user.id, targetId: cid, ip: req.ip });
@@ -310,6 +312,7 @@ export async function familyRoutes(app: FastifyInstance, ctx: Ctx) {
     );
     if (res.rowCount !== 1) throw notFound('device_not_found');
     ctx.hub.disconnect({ deviceId: did });
+    await endCallsOf(ctx, { deviceId: did });
     await logEvent(ctx.db, { kind: 'device_revoked', familyId: fid, actorId: req.user.id, targetId: did, ip: req.ip, metadata: { childId: cid } });
     return { ok: true };
   });
