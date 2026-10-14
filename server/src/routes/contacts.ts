@@ -65,7 +65,7 @@ export async function contactRoutes(app: FastifyInstance, ctx: Ctx) {
     await requireFamilyAdmin(ctx.db, req.user.id, fid);
     const contacts = await many<Record<string, unknown> & { id: string }>(
       ctx.db,
-      `SELECT ct.id, ct.display_name AS "displayName", ct.phone_e164 AS phone, ct.user_id IS NOT NULL AS verified,
+      `SELECT ct.id, ct.display_name AS "displayName", ct.phone_e164 AS phone, ct.user_id IS NOT NULL AS verified, ct.user_id AS "userId",
               ct.created_at AS "createdAt",
               EXISTS (SELECT 1 FROM blocks b WHERE b.family_id = ct.family_id AND b.phone_e164 = ct.phone_e164 AND b.lifted_at IS NULL) AS blocked,
               (SELECT max(expires_at) FROM invitations i WHERE i.contact_id = ct.id AND i.accepted_at IS NULL
@@ -147,6 +147,7 @@ export async function contactRoutes(app: FastifyInstance, ctx: Ctx) {
     }
     return {
       contactId: result.contact.id,
+      phone,
       status: result.invite ? 'pending_verification' : 'approved',
       inviteLink: result.invite?.link ?? null,
       inviteExpiresAt: result.invite?.expiresAt ?? null,
@@ -270,6 +271,9 @@ export async function contactRoutes(app: FastifyInstance, ctx: Ctx) {
     const contact = await contactForAdmin(ctx, req.user.id, ctid, 'manage_contacts');
     if (contact.user_id) throw conflict('already_verified');
     if (await activeBlock(ctx.db, contact.family_id, contact.phone_e164)) throw conflict('contact_blocked');
+    // Only a parent-approved contact gets an invitation; a child's pending request does not.
+    const waiting = await one(ctx.db, `SELECT 1 FROM contact_approvals WHERE contact_id = $1 AND status = 'pending_verification'`, [ctid]);
+    if (!waiting) throw conflict('nothing_to_verify');
     const inv = await ensureInvitation(ctx, ctx.db, contact, req.user.id);
     await sendInvitationSms(ctx, contact.phone_e164, inv.familyName, inv.link);
     await logEvent(ctx.db, { kind: 'contact_invite_created', familyId: contact.family_id, actorId: req.user.id, targetId: ctid, ip: req.ip });
@@ -295,7 +299,7 @@ export async function contactRoutes(app: FastifyInstance, ctx: Ctx) {
     const inv = await one<InvitationRow>(
       ctx.db,
       `SELECT i.id, i.family_id, i.kind, i.contact_id, i.phone_e164, i.admin_perms, f.name AS family_name, u.display_name AS inviter_name
-         FROM invitations i JOIN families f ON f.id = i.family_id JOIN users u ON u.id = i.created_by
+         FROM invitations i JOIN families f ON f.id = i.family_id LEFT JOIN users u ON u.id = i.created_by
         WHERE i.token_hash = $1 AND i.accepted_at IS NULL AND i.revoked_at IS NULL AND i.expires_at > now()`,
       [sha256(token)],
     );
@@ -345,8 +349,8 @@ export async function contactRoutes(app: FastifyInstance, ctx: Ctx) {
         await logEvent(c, { kind: 'contact_verified', familyId: inv.family_id, actorId: req.user.id, targetId: inv.contact_id, ip: req.ip });
       } else {
         const p = inv.admin_perms ?? { canManageContacts: true, canApproveRequests: true, canChangeSettings: false };
-        const isChildMember = await one(c, `SELECT 1 FROM family_memberships WHERE family_id = $1 AND user_id = $2`, [inv.family_id, req.user.id]);
-        if (isChildMember) throw conflict('already_admin');
+        const alreadyMember = await one(c, `SELECT 1 FROM family_memberships WHERE family_id = $1 AND user_id = $2`, [inv.family_id, req.user.id]);
+        if (alreadyMember) throw conflict('already_admin');
         await c.query(
           `INSERT INTO family_memberships (family_id, user_id, role, can_manage_contacts, can_approve_requests, can_change_settings)
            VALUES ($1, $2, 'admin', $3, $4, $5)`,

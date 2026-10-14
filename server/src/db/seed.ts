@@ -32,7 +32,10 @@ if (existing) {
   }
   await pool.query(`DELETE FROM users WHERE id IN (SELECT user_id FROM child_profiles cp JOIN families f ON f.id = cp.family_id WHERE f.is_demo)`);
   await pool.query(`DELETE FROM families WHERE is_demo`);
-  await pool.query(`DELETE FROM users WHERE is_demo`);
+  // Also removes accounts the browser smoke test registers in the reserved demo range.
+  await pool.query(`DELETE FROM users WHERE is_demo OR phone_e164 LIKE '+97250000%'`);
+  // Lets the demo numbers sign in again right away after a reset.
+  await pool.query(`DELETE FROM otp_challenges WHERE phone_e164 LIKE '+97250000%'`);
 }
 
 await withTx(pool, async (c) => {

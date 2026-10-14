@@ -21,7 +21,7 @@ CREATE TABLE users (
 CREATE TABLE families (
   id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   name        text NOT NULL CHECK (char_length(name) BETWEEN 1 AND 60),
-  created_by  uuid NOT NULL REFERENCES users(id),
+  created_by  uuid REFERENCES users(id) ON DELETE SET NULL,
   is_demo     boolean NOT NULL DEFAULT false,
   created_at  timestamptz NOT NULL DEFAULT now()
 );
@@ -88,7 +88,7 @@ CREATE TABLE pairing_codes (
   id             uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   child_user_id  uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   code_hash      bytea NOT NULL UNIQUE,
-  created_by     uuid NOT NULL REFERENCES users(id),
+  created_by     uuid REFERENCES users(id) ON DELETE SET NULL,
   expires_at     timestamptz NOT NULL,
   consumed_at    timestamptz,
   created_at     timestamptz NOT NULL DEFAULT now()
@@ -103,7 +103,7 @@ CREATE TABLE contacts (
   display_name  text NOT NULL CHECK (char_length(display_name) BETWEEN 1 AND 60),
   phone_e164    text NOT NULL,
   user_id       uuid REFERENCES users(id) ON DELETE SET NULL,
-  created_by    uuid NOT NULL REFERENCES users(id),
+  created_by    uuid REFERENCES users(id) ON DELETE SET NULL,
   created_at    timestamptz NOT NULL DEFAULT now(),
   UNIQUE (family_id, phone_e164)
 );
@@ -145,7 +145,7 @@ CREATE TABLE invitations (
   accepted_at  timestamptz,
   accepted_by  uuid REFERENCES users(id) ON DELETE SET NULL,
   revoked_at   timestamptz,
-  created_by   uuid NOT NULL REFERENCES users(id),
+  created_by   uuid REFERENCES users(id) ON DELETE SET NULL,
   created_at   timestamptz NOT NULL DEFAULT now(),
   CONSTRAINT contact_invite_has_contact CHECK (kind <> 'contact' OR contact_id IS NOT NULL)
 );
@@ -158,7 +158,7 @@ CREATE TABLE blocks (
   family_id   uuid NOT NULL REFERENCES families(id) ON DELETE CASCADE,
   phone_e164  text NOT NULL,
   reason      text CHECK (reason IS NULL OR char_length(reason) <= 200),
-  created_by  uuid NOT NULL REFERENCES users(id),
+  created_by  uuid REFERENCES users(id) ON DELETE SET NULL,
   created_at  timestamptz NOT NULL DEFAULT now(),
   lifted_at   timestamptz,
   lifted_by   uuid REFERENCES users(id) ON DELETE SET NULL
@@ -172,7 +172,7 @@ CREATE TABLE conversations (
   title            text CHECK (title IS NULL OR char_length(title) BETWEEN 1 AND 60),
   -- For direct conversations: the two member ids sorted, so a pair has one conversation.
   direct_key       text UNIQUE,
-  created_by       uuid NOT NULL REFERENCES users(id),
+  created_by       uuid REFERENCES users(id) ON DELETE SET NULL,
   created_at       timestamptz NOT NULL DEFAULT now(),
   last_message_at  timestamptz,
   CONSTRAINT direct_has_key CHECK ((kind = 'direct') = (direct_key IS NOT NULL))

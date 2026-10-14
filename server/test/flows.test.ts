@@ -25,6 +25,10 @@ describe('child asks for a new contact', () => {
     expect(pending.body.requests).toHaveLength(1);
     expect(pending.body.requests[0].note).toBe('חבר מהכיתה');
 
+    // No invitation goes out before a parent approves the request.
+    const early = await env.call('POST', `/contacts/${pending.body.requests[0].contactId}/invitation`, parent.token);
+    expect(early.body.error.code).toBe('nothing_to_verify');
+
     const decision = await env.call('POST', `/approvals/${req.body.id}/decision`, parent.token, { decision: 'approve' });
     expect(decision.body.status).toBe('pending_verification');
     expect(env.sms.lastTo(phone)).toContain(decision.body.inviteLink);
@@ -160,6 +164,31 @@ describe('privacy operations', () => {
     expect((await env.call('GET', '/me', c.token)).status).toBe(401);
     const detail = await env.call('GET', `/families/${familyId}/children/${kids[0]!.id}`, parent.token);
     expect(detail.body.contacts[0]).toMatchObject({ status: 'pending_verification', verified: false });
+  });
+
+  it('removes a child who started conversations, then deletes the whole family', async () => {
+    const { parent, familyId, kids } = await env.family(newPhone(), 'שלומית', ['אריאל', 'הדר']);
+    const grandpa = await env.verifiedContact(parent.token, familyId, kids.map((k) => k.id), newPhone(), 'סבא');
+    // Each child creates a conversation, a contact request and a report.
+    for (const k of kids) {
+      const conv = await env.dm(k.token, grandpa.id);
+      await env.send(k.token, conv, 'שלום סבא');
+      await env.call('POST', '/me/contact-requests', k.token, { displayName: 'חבר', phone: newPhone() });
+      await env.call('POST', '/reports', k.token, { reason: 'help' });
+    }
+    const stepUp = async () => {
+      const s = await env.call('POST', '/auth/step-up', parent.token);
+      return { challengeId: s.body.challengeId, code: /(\d{6})/.exec(env.sms.lastTo(parent.phone))![1] };
+    };
+    const del = await env.call('DELETE', `/families/${familyId}/children/${kids[0]!.id}`, parent.token, await stepUp());
+    expect(del.status).toBe(200);
+    expect((await env.call('GET', '/me', kids[0]!.token)).status).toBe(401);
+
+    const delFamily = await env.call('DELETE', `/families/${familyId}`, parent.token, await stepUp());
+    expect(delFamily.status).toBe(200);
+    expect((await env.call('GET', '/me', kids[1]!.token)).status).toBe(401);
+    expect((await env.call('GET', '/conversations', grandpa.token)).body.conversations).toEqual([]);
+    expect((await env.call('GET', '/me', parent.token)).body.families).toEqual([]);
   });
 
   it('records consent when a family is created', async () => {
